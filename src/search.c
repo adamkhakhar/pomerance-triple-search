@@ -47,8 +47,30 @@
  *                             (sqrtm1 unused in that case)
  * Found (10^24+7, 38923582678463553756710, 843367907077058108520461)
  * on 2026-06-11 in mode x16halvenonsplit; verified by DANGER3 vpp.py.
- * No other functional changes relative to McLain's version; benchmark
- * and statistics modes retain their original p ≡ 5 (mod 8) gates.
+ * Benchmark and statistics modes retain their original p ≡ 5 (mod 8) gates.
+ *
+ * Layers added after the record stack (August 2026), all exact — they
+ * change cost, never the search distribution.  See README.md section 2.
+ *
+ *   1. Reciprocal-mark deduplication.  The X1(16) auxiliary quadratic
+ *      emits two roots per curve; they give the same Montgomery A and
+ *      reciprocal marked x, differing by the rational 2-torsion translate
+ *      x -> 1/x, which preserves halving depth.  Only one is tested.
+ *      Exact 2x.  (tools/audit_dedup.py re-proves this independently.)
+ *   2. Jacobi-before-root gating.  Every prospective square root is
+ *      preceded by a GMP two-limb Jacobi test, so nonsquare gates cost no
+ *      modular exponentiation.
+ *   3. Skeleton lookahead (halve_chain_lookahead_m128).  With
+ *      P = x+s+1, M = x+s-1: w = 4PM and chi(d_next) = chi(B)chi(2)chi(P),
+ *      so two Jacobi symbols decide the branch AND the next gate before
+ *      the sqrt(w) construction is paid; chains that will die are dropped
+ *      without their terminal root.  ~25% fewer chain exponentiations.
+ *      Differentially tested against the plain chain (`make check`);
+ *      POMERANCE_NO_LOOKAHEAD=1 disables it for A/B.
+ *   4. Scale-general two-limb arithmetic, valid through p < 2^127.
+ *
+ * The CUDA port in cuda/ carries layers 1 and 4 plus a genus-one cover
+ * source; see cuda/README.md.
  * ----------------------------------------------------------------------
  */
 

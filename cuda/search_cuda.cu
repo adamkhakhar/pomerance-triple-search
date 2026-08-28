@@ -1,6 +1,42 @@
 /*
- * pomerance_cuda.cu -- CUDA prototype for the p23/p25/p26 X1(16) nonsplit
- * first-branch halving search path from pomerance.c.
+ * search_cuda.cu -- CUDA search for Pomerance triples.
+ *
+ * ----------------------------------------------------------------------
+ * PROVENANCE
+ *
+ * Base CUDA engine (pomerance_cuda.cu: the u96/u128 X1(16) nonsplit
+ * successive-halving kernels, claim/chunk scheduling, and driver): Alexa
+ * McLain, for the p = 10^26+67 record (52M candidates/s on one RTX 6000
+ * Ada).  https://github.com/alexamclain/Danger2026DataChallenge (MIT)
+ * That lineage in turn builds on Fabian Ruehle's 2-Sylow projection search
+ * and Jane Shi's p = 3 (mod 4) square-root patch; see ../src/search.c for
+ * the full chain.
+ *
+ * Added here (August 2026), both exact -- they change cost, never the
+ * search distribution (see README.md in this directory):
+ *   1. Reciprocal-mark deduplication.  The base kernel tests both roots of
+ *      the X1(16) auxiliary quadratic; they are the same curve up to the
+ *      rational 2-torsion translate x -> 1/x, which preserves halving
+ *      depth, so x16cover_kernel96 tests one.  Exact 2x.
+ *   2. Genus-one first-lift cover source.  D*H = y(y-1)(y-2)*G^2 with
+ *      X = y-1 makes the first halving gate square whenever D is, so
+ *      sampling y by walking E0: W^2 = X^3 - X gives exactly 2x hazard per
+ *      candidate and transports the halving root algebraically instead of
+ *      extracting it.  Walks are batched POM_COVER_LANES per thread behind
+ *      one shared inversion.
+ * A fused conversion also removes one of the two inversions per curve.
+ *
+ * Correctness is proven before any GPU time is spent: every numeric routine
+ * is HD (host and device), so -DPOM_HOST_TEST compiles the exact device
+ * math for host_test.cpp, and the binary re-proves it on-device (selftest)
+ * before it will run a production search.
+ * ----------------------------------------------------------------------
+ *
+ * The kernels are deliberately narrow: they port the production
+ * x16halvenonsplit path
+ * for primes with the fast square-root cases p == 5 mod 8 or p == 3 mod 4,
+ * with p < 2^127.  The generic 2-Sylow search and diagnostic modes remain in
+ * pomerance.c.
  *
  * This is deliberately narrow: it ports the production x16halvenonsplit path
  * for primes with the fast square-root cases p == 5 mod 8 or p == 3 mod 4,

@@ -1,4 +1,6 @@
 search
+search_conjugate
+legacy_fast65
 *.o
 cuda/search_cuda
 cuda/host_test

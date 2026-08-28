@@ -3,9 +3,12 @@
 State-of-the-art search for **Pomerance triples**, the shortest known
 primality certificates, targeting the open
 [DANGER3 data challenge](https://github.com/AndrewVSutherland/DANGER3)
-(current frontier: **p = 10^27 + 103**, unsolved). One scale-general engine,
-`src/search.c`, runs the same code path from 10^12 through the frontier
-target and beyond (p < 2^127). At equal mathematical search mass it measures
+(current frontier: **p = 10^27 + 103**, unsolved). A CPU engine and a CUDA
+engine share one algorithm. The CPU engine, `src/search.c`, is
+scale-general: the same code path runs from 10^12 through the frontier
+target and beyond (p < 2^127). The CUDA engine in [`cuda/`](cuda) carries
+the same layers for GPU-scale throughput and is the practical route to the
+frontier target. At equal mathematical search mass the CPU engine measures
 **~3-4x faster than the record-holding stack** behind the 10^22 through
 10^26 challenge solves, and in a judged paired race on fresh held-out primes
 at the 10^21 tier it solved **4 primes to the record stack's 0** under
@@ -187,6 +190,29 @@ Diagnostics go to stderr; stdout carries exactly the one-line answer.
 Verify any output against the official DANGER3 logic:
 
     python3 tools/vpp.py <p> <A> <x0>       # prints True
+
+### On a GPU
+
+The CUDA engine carries the same layers and is how the frontier target is
+actually approachable — see [`cuda/README.md`](cuda/README.md) for the port,
+its correctness proofs and measured rates:
+
+    cd cuda
+    make check                 # proves the device math with no GPU present
+    make                       # build (arch auto-detected by the runner)
+    ./run_frontier.sh          # selftest -> A/B -> sharded search -> verify
+
+`cuda/pod_validate.sh` is a single self-contained file (sources embedded)
+for validating a freshly rented GPU box with no repo access or credentials.
+
+### Repository map
+
+    src/search.c          the engine
+    tools/vpp.py          official DANGER3 verifier (unmodified)
+    tools/audit_dedup.py  independent check of the deduplication lemma
+    bench/compare.py      equal-coverage race vs the vendored record engine
+    bench/upstream/       the record engine, vendored verbatim for that race
+    cuda/                 CUDA port, host-side proofs, pod tooling
 
 Supported classes: p mod 8 in {3, 5, 7} (p = 1 mod 8 remains unsupported in
 the whole lineage, as in the record stack).

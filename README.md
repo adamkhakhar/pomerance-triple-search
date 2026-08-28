@@ -142,11 +142,21 @@ an independent schoolbook-arithmetic checker before printing it:
 | 20000000000000000173 | 778,988,441 | 950 s | 19476394758607495157 | 4305480688130056071 |
 | 20000000000000000447 | 804,917,759 | 970 s | 19660646159258000845 | 5142638602974011965 |
 
-(As a fidelity check, the second solve reproduces the research prototype's
+As a fidelity check, the second solve reproduces the research prototype's
 logged triple for the same prime and seed exactly, so the restructuring
-preserves the original search trajectory bit for bit. Search times here are
-tail draws above the mean; that is normal for an exponential distribution
-and irrelevant to the equal-coverage throughput comparison above.)
+preserves the original search trajectory bit for bit.
+
+A calibration note on candidate counts: these three solves cost 0.63 to
+0.80 billion curves each, which is well above what the historical
+"0.07 to 0.1 times sqrt(p)" figure would suggest. That figure comes from
+campaigns at larger p with different candidate bookkeeping, and per-prime
+difficulty additionally varies by large factors with the class numbers of
+the admissible curve orders, so it should not be used to predict solve
+times at this scale. The speedup claim in this repository deliberately does
+not rest on solve times or candidate-count expectations at all: it rests on
+the equal-coverage throughput measurement (deterministic) combined with the
+reciprocal-mark lemma (the curve stream and its hit distribution are
+unchanged, each curve simply costs less).
 
 **Why this is state of the art.** The baseline in these measurements is the
 exact code lineage that set the 10^22, 10^23, 10^24, 10^25, and 10^26
@@ -179,6 +189,26 @@ to timer noise.
   the entire method family.
 - The reciprocal-mark cut and the batched inversions are structural and
   carry to any size, including GPU implementations.
+
+## Reproducing the results
+
+Everything needed to reproduce the claims is in this repository:
+
+```sh
+make check      # 1. reciprocal-mark lemma audit (independent Python code)
+                # 2. bounded search smoke run
+                # 3. official verifier on a known certificate from this code
+
+make bench      # equal-coverage benchmark against the prior state of the
+                # art, built from bench/upstream/pomerance.c (vendored
+                # verbatim from the record implementation, MIT)
+```
+
+`tools/audit_reciprocal.py --samples 2000` runs a larger lemma audit. The
+benchmark numbers in this README used `bench/compare.py --threads 6` in a
+Linux container pinned to 6 CPUs; absolute times vary by machine, the ratio
+is the result. The vendored upstream file is kept byte-identical to its
+source, including its original comment style.
 
 ## Build and run
 

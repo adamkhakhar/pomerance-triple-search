@@ -101,3 +101,18 @@ kernel counts cover curves, each worth 2 distinct curves = 4 legacy marks of
 hazard. Expected work for 10^27+103 is 2.2-3.2e12 marks, i.e.
 **5.5-8e11 cover curves**; `run_frontier.sh` defaults to 2.4e12, about 3x
 expectation (the ~95th percentile of an exponential draw).
+
+## Validating on a rented GPU
+
+`pod_validate.sh` is a single self-contained file: the sources are embedded,
+so a fresh pod needs no repo access, no tokens and no file transfer tooling.
+Copy it to any NVIDIA pod with a CUDA **devel** image (nvcc required) and run:
+
+    bash pod_validate.sh              # build + host proof + device selftest + A/B
+    bash pod_validate.sh --search     # ...and continue into the production search
+
+It detects the GPU architecture, proves the device math on the host, builds,
+runs the on-device selftest, then times the legacy record kernel against the
+cover kernel at identical hazard on the frontier prime and projects the
+expected time-to-triple from the measured rate. Any failure stops the script
+with a non-zero status.

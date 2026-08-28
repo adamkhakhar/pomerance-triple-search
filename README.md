@@ -1,13 +1,23 @@
 # pomerance-triple-search
 
-State-of-the-art search for **Pomerance triples**, the shortest known
-primality certificates, targeting the open
-[DANGER3 data challenge](https://github.com/AndrewVSutherland/DANGER3)
-(current frontier: **p = 10^27 + 103**, unsolved). A CPU engine
-(`src/search.c`) and a CUDA engine ([`cuda/`](cuda)) share one algorithm and
-run the same code path from 10^12 through the frontier target (p < 2^127).
+Search for **Pomerance triples**, the shortest known primality certificates,
+for the [DANGER3 data challenge](https://github.com/AndrewVSutherland/DANGER3).
 
-Against the record-holding stack behind the 10^22 through 10^26 challenge
+**This repository solved the challenge's open frontier target,
+p = 10^27 + 103**, on 2026-08-28:
+
+    p  = 1000000000000000000000000103
+    A  = 792266506864025595923438866
+    x0 = 484583117575631730716207764
+
+An unconditional proof that p is prime, checkable in 45 doublings. See
+[`frontier/`](frontier) for the certificate, a machine-checkable Lean 4
+proof, and three independent ways to verify it. The previous frontier on the
+leaderboard was 10^26 + 67.
+
+A CPU engine (`src/search.c`) and a CUDA engine ([`cuda/`](cuda)) share one
+algorithm and run the same code path from 10^12 through the frontier target
+(p < 2^127). Against the record-holding stack behind the 10^22 through 10^26
 solves, it measures **3-4x faster on CPU** and **2.3x faster on GPU** at
 equal mathematical search mass, and won a judged head-to-head **4 solves to
 0** on fresh held-out primes.
@@ -36,6 +46,12 @@ progress consists of driving down the constant. (Why the exponent itself
 appears immovable is section 4.)
 
 ## 2. Key results
+
+**The frontier target, solved.** p = 10^27 + 103 fell in ~52 minutes on 16
+RTX 5090s (~$9 of compute), after ~1.4 x 10^12 cover curves fleet-wide; the
+winning GPU hit at 3097.9 s. Verified by the official DANGER3 verifier, by a
+second implementation, and by a from-scratch Montgomery ladder that shares no
+code with the engine. Details and the Lean proof: [`frontier/`](frontier).
 
 **Judged head-to-head, 4 to 0.** Fresh random probable primes generated
 *after* submission, both engines running the same primes in the same order
@@ -74,11 +90,11 @@ of exact order 32. The same proofs run on a machine with no GPU at all
 (`cd cuda && make check`), and end-to-end the engine's triples are accepted
 by the official DANGER3 verifier, which shares no code with it.
 
-**The frontier.** For p = 10^27 + 103 the record stack's hit rate puts the
-expected work at 2.2-3.2 x 10^12 marks — 5.5-7.9 x 10^11 cover curves here.
-At the measured GPU rate that is **5-8 expected GPU-hours on one card**, or
-under an hour on a modest fleet. Search times are near-exponentially
-distributed, so single runs deviate several-fold in both directions.
+**Frontier economics.** The record stack's hit rate put the expected work
+for 10^27 + 103 at 2.2-3.2 x 10^12 marks — 5.5-7.9 x 10^11 cover curves
+here, or 5-8 expected GPU-hours on one card. The actual solve took ~1.4 x
+10^12 cover curves (~1.8x expectation, well inside normal variance for a
+near-exponential distribution) across a 16-GPU fleet.
 
 ## 3. What makes it faster
 
@@ -242,6 +258,7 @@ box with no repo access or credentials.
 
 ### Repository map
 
+    frontier/             the 10^27+103 certificate and Lean proof
     src/search.c          the CPU engine
     cuda/                 CUDA engine, host-side proofs, pod tooling
     tools/vpp.py          official DANGER3 verifier (unmodified)

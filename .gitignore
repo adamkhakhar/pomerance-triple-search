@@ -1,2 +1,5 @@
 search
 *.o
+cuda/search_cuda
+cuda/host_test
+cuda/out/

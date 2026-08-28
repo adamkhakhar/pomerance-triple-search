@@ -61,7 +61,7 @@ solved **4**, the record stack **0**.
 
 **CPU, equal search mass.** Rebuilt from source against the unmodified
 record engine, same seeds, 4 threads, arm64. Equal hazard: 4M record-stack
-marks = 2M distinct curves here. Reproduce with `make bench` — the record
+marks = 2M distinct curves here. Reproduce with `make bench`; the record
 engine is vendored at `bench/upstream/`, so every ratio below comes out of
 this repository alone.
 
@@ -76,7 +76,7 @@ transfer across platforms, hand-tuned x86 arithmetic does not fully.
 
 **GPU, equal search mass** (RTX 4090, same-seed A/B on the frontier prime
 itself): the record CUDA kernel sustains 46.4M marks/s, this engine 27.0M
-cover-curves/s — **2.34x** at identical hazard. On an RTX 5090 the cover
+cover-curves/s, a **2.34x** gain at identical hazard. On an RTX 5090 the cover
 kernel reaches 29.4M cover-curves/s.
 
 **Correctness, on the device that will do the work.** Before any production
@@ -91,7 +91,7 @@ of exact order 32. The same proofs run on a machine with no GPU at all
 by the official DANGER3 verifier, which shares no code with it.
 
 **Frontier economics.** The record stack's hit rate put the expected work
-for 10^27 + 103 at 2.2-3.2 x 10^12 marks — 5.5-7.9 x 10^11 cover curves
+for 10^27 + 103 at 2.2-3.2 x 10^12 marks (5.5-7.9 x 10^11 cover curves)
 here, or 5-8 expected GPU-hours on one card. The actual solve took ~1.4 x
 10^12 cover curves (~1.8x expectation, well inside normal variance for a
 near-exponential distribution) across a 16-GPU fleet.
@@ -101,7 +101,7 @@ near-exponential distribution) across a 16-GPU fleet.
 Every layer below is **exact**: it changes cost, never the search
 distribution. None is a heuristic filter, a sampling bias, or a
 probabilistic prefilter. The identities were verified symbolically
-(25-point random rational evaluation at degrees <= 16 — a proof for
+(25-point random rational evaluation at degrees <= 16, a proof for
 polynomial identities), then re-verified numerically at runtime.
 
 The unifying observation is that the record stack repeatedly **pays full
@@ -126,7 +126,7 @@ same halving depth. The two marks therefore always return the same verdict:
 testing the second is pure duplicated work. The engine tests one
 representative and counts distinct curves.
 
-This is the layer the GPU record kernel was missing entirely — it tested
+This is the layer the GPU record kernel was missing entirely: it tested
 both marks in a `for (ri = 0; ri < 2; ri++)` loop. `tools/audit_dedup.py`
 re-proves the lemma numerically from an independent implementation.
 
@@ -146,7 +146,7 @@ elliptic curve
 
     E0 :  W^2 = X^3 - X,
 
-every point gives H = (W*G)^2 / D — meaning that **once D is a square, H is
+every point gives H = (W*G)^2 / D, meaning that **once D is a square, H is
 a square automatically**. The record stack draws y uniformly and pays an
 exponentiation to discover that H fails half the time. Sampling y by
 *walking E0 instead* makes the first gate pass by construction: exactly
@@ -168,8 +168,8 @@ where character prefilters failed.
 
 ### 3.3 A predicted character: the skeleton lookahead (25% fewer powers)
 
-For the halves x' of x — where s^2 = d = x^2 + Ax + 1, u = 2(x+s),
-w = u^2 - 4 — the factors P = x+s+1 and M = x+s-1 satisfy
+For the halves x' of x (where s^2 = d = x^2 + Ax + 1, u = 2(x+s),
+w = u^2 - 4), the factors P = x+s+1 and M = x+s-1 satisfy
 
     w = 4*P*M,      P(s)*P(-s) = (2-A)*x,      chi(x') = chi(2)*chi(P),
 
@@ -179,7 +179,7 @@ where B ~ x*d is the chain-constant twist class:
     chi(d_next) = chi(B) * chi(2) * chi(P_branch).
 
 So after sqrt(d), **two Jacobi symbols decide both the branch and the next
-level's gate** — before the sqrt(w) construction is paid. A chain that will
+level's gate**, before the sqrt(w) construction is paid. A chain that will
 die at the next gate is abandoned without its terminal square root, and the
 per-level Jacobi test on d disappears because the prediction already
 certifies d square. That removes 25% of all halving-chain exponentiations
@@ -195,7 +195,7 @@ it for A/B).
 **Cheaper gates.** Every prospective square root is preceded by a Jacobi
 test through GMP's two-limb kernel (~0.20 us at 70 bits, ~0.25 us at 90
 bits, against ~1.2-1.5 us for the Euler-criterion power it replaces), so a
-nonsquare gate — half the stream at every level — costs no exponentiation.
+nonsquare gate (half the stream at every level) costs no exponentiation.
 
 **Scale-general arithmetic.** Production values stay in Montgomery form
 (quadratic characters are unaffected: R is a square) with a two-limb
@@ -203,7 +203,7 @@ reducer valid through p < 2^127, GMP assembly powm for the fixed
 square-root exponents, and batched Montgomery-trick inversions.
 
 **A measurement hazard worth naming.** Threads are pinned to the actual
-cgroup CPU quota. An oversubscribed pool costs ~2x — and mismeasuring a
+cgroup CPU quota. An oversubscribed pool costs ~2x, and mismeasuring a
 *baseline* that way silently inflates any claimed speedup by the same
 factor. Several published-looking ratios in this problem's history dissolve
 under a correctly pinned baseline.
@@ -220,8 +220,8 @@ linear-algebra certification over F_2 (character words through depth 21,
 three residue classes, ~7.5M sampled streams) found no multiplicative
 relation that would collapse any later gate.
 
-The constructive alternative — CM: prescribe the curve order instead of
-searching for it — is closed for this target by direct computation: the
+The constructive alternative (CM: prescribe the curve order instead of
+searching for it) is closed for this target by direct computation: the
 three admissible orders of 10^27 + 103 all have essentially squarefree
 discriminants with class numbers ~10^13 ~ sqrt(p), so writing the curve down
 costs at least as much as finding it. What remains above constant factors is
@@ -272,14 +272,19 @@ the whole lineage, as in the record stack).
 ## 6. Credits and license
 
 MIT, throughout. The base search lineage is Fabian Ruehle's, Alexa McLain's
-and Jane Shi's MIT-licensed DANGER3 record code — the 2-Sylow projection
+and Jane Shi's MIT-licensed DANGER3 record code: the 2-Sylow projection
 search, the X1(16) prescribed-torsion sampler with successive halving and
 the nonsplit filter, the p = 3 (mod 4) square-root patch, and the CUDA port
 that set the 10^26 record. Provenance headers are preserved in both
 engines. The challenge and verifier are Andrew Sutherland's.
 
-The layers in section 3, the audits, and the cross-platform measurements are
-this repository's own, produced in an autonomous agent research campaign
-(2026) and verified as described above. Every performance number states its
+The layers in section 3, the audits, the cross-platform measurements, and
+the frontier solve are this repository's own, produced in an autonomous
+agent research campaign (2026) with two frontier models: **OpenAI GPT 5.6
+Sol**, whose research rollouts discovered the marked-point deduplication and
+the genus-one cover sampler, and **Anthropic Fable 5** (Claude), which built
+and judged the research environment, contributed the skeleton lookahead
+layer, wrote the engines and the frontier tooling, and independently
+verified every claim as described above. Every performance number states its
 platform; when reproducing, pin the record stack's thread count to the
 actual CPU quota.

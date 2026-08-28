@@ -102,6 +102,36 @@ hazard. Expected work for 10^27+103 is 2.2-3.2e12 marks, i.e.
 **5.5-8e11 cover curves**; `run_frontier.sh` defaults to 2.4e12, about 3x
 expectation (the ~95th percentile of an exponential draw).
 
+## Measured on hardware (RTX 4090, 2026-08-28)
+
+Validated end to end on a rented RunPod RTX 4090 (driver 550.54.15, CUDA 12.4,
+128 SMs), on the frontier prime p = 10^27 + 103:
+
+    selftest: checked=1047711 transport_bad=0 emitted=524136 order_bad=0 off_curve=0
+    selftest: PASS
+
+Over a million on-device transport checks, zero failures; every emitted point
+had exact order 32 and every cover point lay on E0.
+
+Same-seed A/B at identical hazard (1.5e9 legacy marks vs 3.75e8 cover curves):
+
+| kernel | time | rate |
+|---|---|---|
+| legacy record kernel | 32.6 s | 46.4 M marks/s |
+| cover kernel | 13.9 s | 27.0 M cover-curves/s (= 108 M marks-equivalent/s) |
+| **measured speedup** | **2.34x** | |
+
+The legacy rate reproduces the p26 team's 48.5 M/s figure for a 4090, so the
+baseline is sound. Expected time to a triple on one 4090 at the measured
+rate: **5.7-8.1 h** (median 3.9-5.6 h, 95th percentile 17-24 h).
+
+Lane sweep on the same card - 4 is the sweet spot, larger values lose to
+register pressure:
+
+| LANES | 2 | 4 | 8 | 16 |
+|---|---|---|---|---|
+| M cover-curves/s | 27.24 | **27.35** | 25.16 | 25.30 |
+
 ## Validating on a rented GPU
 
 `pod_validate.sh` is a single self-contained file: the sources are embedded,

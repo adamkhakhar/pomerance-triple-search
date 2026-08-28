@@ -1,24 +1,24 @@
 #!/usr/bin/env python3
 """
-audit_reciprocal.py: reproduce the empirical validation of the
-reciprocal-mark lemma that justifies this repository's main optimization.
+audit_dedup.py: reproduce the empirical validation of the marked-point
+deduplication lemma behind the search engine's exact 2x layer.
 
 Lemma. On the Montgomery curve B*y^2 = x^3 + A*x^2 + x over Z/pZ, the map
 x -> 1/x is translation by the rational 2-torsion point (0,0). On the
 nonsplit X1(16) family the rational 2-power subgroup is cyclic, so two
 points differing by 2-torsion have the same halving depth. Consequently the
-two marked points emitted per curve by the prior state-of-the-art sampler
+two marked points emitted per curve by the record-stack sampler
 (which have reciprocal x-coordinates) always return the same search verdict,
 and testing the second one is pure double work.
 
 This script checks the observable consequence directly, with code that is
-independent of src/pomerance_search.c: for random (p, A, x), the doubling
+independent of src/search.c: for random (p, A, x), the doubling
 chains started at x and at 1/x mod p must reach Z = 0 at the same step
 (or both fail to within the depth bound). Any mismatch would break the
 lemma and the deduplication.
 
 Usage:
-    python3 tools/audit_reciprocal.py [--samples N] [--seed S]
+    python3 tools/audit_dedup.py [--samples N] [--seed S]
 
 Exit code 0 and a summary line if no mismatches are found; exit 1 otherwise.
 """

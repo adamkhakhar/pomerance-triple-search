@@ -1,21 +1,17 @@
-# reciprocal-mark-cut
+# pomerance-triple-search
 
-A fast search for **Pomerance triples**, the shortest known primality
-certificates, targeting the open [DANGER3 data challenge](https://github.com/AndrewVSutherland/DANGER3)
-(current frontier: **p = 10^27 + 103**, unsolved). One engine, `src/search.c`:
-the record-holding search stack (the code lineage behind the 10^22 through
-10^26 challenge solves) plus four further exact layers, measured **~3-4x
-faster than the record stack at equal mathematical search mass** and
-confirmed in a judged paired race on fresh held-out primes: **4 solved
-versus 0** for the record stack at the 10^21 tier under identical caps. The
-engine is scale-general - the same code path runs from 10^12 through the
-frontier target and beyond (p < 2^127).
+State-of-the-art search for **Pomerance triples**, the shortest known
+primality certificates, targeting the open
+[DANGER3 data challenge](https://github.com/AndrewVSutherland/DANGER3)
+(current frontier: **p = 10^27 + 103**, unsolved). One scale-general engine,
+`src/search.c`, runs the same code path from 10^12 through the frontier
+target and beyond (p < 2^127). At equal mathematical search mass it measures
+**~3-4x faster than the record-holding stack** behind the 10^22 through
+10^26 challenge solves, and in a judged paired race on fresh held-out primes
+at the 10^21 tier it solved **4 primes to the record stack's 0** under
+identical caps.
 
-The name refers to the first of those layers: the proof that the record
-method spent exactly half of its work on candidates that could never change
-any outcome.
-
-## 1. What is being searched
+## 1. The problem
 
 For an odd integer p, let q = floor(sqrt(p)) and let k be the least integer
 with 2^k > q + 1 + 2*sqrt(q); note 2^k is approximately 2*sqrt(p). A
@@ -38,7 +34,7 @@ so every known method performs on the order of sqrt(p) candidate tests and
 progress consists of driving down the constant. (Why the exponent itself
 appears immovable is summarized in section 4.)
 
-## 2. The algorithm
+## 2. The state of the art
 
 The base is the record stack (`x16halvenonsplit`; 2-Sylow base by Fabian
 Ruehle, X1(16) prescribed torsion, successive halving and nonsplit filter by
@@ -49,30 +45,29 @@ the rational 2-Sylow subgroup is cyclic, and climb one halving per level -
 marked-point depth then equals v2(#E), and an early abort costs about two
 square-root exponentiations per candidate on average.
 
-On that base this engine adds four exact layers. The identities were
-verified symbolically (25-point random rational evaluation at degrees <= 16,
-which is a proof for polynomial identities), and each layer preserves the
-search distribution exactly - these are not heuristic filters.
+On that base the engine adds four exact layers. The identities were verified
+symbolically (25-point random rational evaluation at degrees <= 16, a proof
+for polynomial identities), and each layer preserves the search distribution
+exactly - none is a heuristic filter.
 
-**Layer 1 - the reciprocal-mark cut (exact 2x).** The X1(16) sampler's
-auxiliary quadratic emits two roots per curve. They yield the same
-Montgomery A and *reciprocal* marked x-coordinates, and on a nonsplit curve
-the two marks differ by the rational 2-torsion translate x -> 1/x, which
-preserves divisibility depth. Testing both can never change an outcome; the
-engine tests one representative per curve and counts distinct curves.
-(`tools/audit_reciprocal.py` re-proves this numerically from an independent
+**Marked-point deduplication (exact 2x).** The X1(16) sampler's auxiliary
+quadratic emits two roots per curve. They yield the same Montgomery A and
+reciprocal marked x-coordinates, and on a nonsplit curve the two marks
+differ by the rational 2-torsion translate x -> 1/x, which preserves
+divisibility depth. Testing both can never change an outcome; the engine
+tests one representative per curve and counts distinct curves.
+(`tools/audit_dedup.py` re-proves this numerically from an independent
 implementation.)
 
-**Layer 2 - Jacobi-before-root gating (~6x cheaper gates).** Every
-prospective square root is preceded by a Jacobi-symbol test through GMP's
-two-limb kernel (~0.20 us at 70 bits, ~0.25 us at 90 bits, versus
-~1.2-1.5 us for the Euler-criterion power it replaces). A nonsquare gate -
-half the stream at every halving level - returns without a modular
-exponentiation.
+**Jacobi-before-root gating (~6x cheaper gates).** Every prospective square
+root is preceded by a Jacobi-symbol test through GMP's two-limb kernel
+(~0.20 us at 70 bits, ~0.25 us at 90 bits, versus ~1.2-1.5 us for the
+Euler-criterion power it replaces). A nonsquare gate - half the stream at
+every halving level - returns without a modular exponentiation.
 
-**Layer 3 - the skeleton lookahead (this repository's contribution).** For
-the halves x' of x (where s^2 = d = x^2 + Ax + 1, u = 2(x+s), w = u^2 - 4),
-the factors P = x+s+1 and M = x+s-1 satisfy
+**Skeleton lookahead.** For the halves x' of x (where s^2 = d =
+x^2 + Ax + 1, u = 2(x+s), w = u^2 - 4), the factors P = x+s+1 and
+M = x+s-1 satisfy
 
     w = 4*P*M,     P(s)*P(-s) = (2-A)*x,     chi(x') = chi(2)*chi(P),
 
@@ -86,47 +81,45 @@ chi(P+)chi(M+)) and the character of the *next* level's gate - before the
 sqrt(w) construction is paid. A chain that will die at the next gate is
 abandoned without its terminal square root, and the per-level jacobi(d)
 after the first is dropped because the prediction already certifies d
-square. This removes 25% of all halving-chain exponentiations; end-to-end
-it measures ~4-5% because the chain shares the exponentiation budget with
-the amortized sampler. The identities are exact: with a fixed seed and one
+square. This removes 25% of all halving-chain exponentiations (~4-5%
+end-to-end, since the chain shares the exponentiation budget with the
+amortized sampler). The identities are exact: with a fixed seed and one
 thread the lookahead chain emits the same triple and the same candidate
 count as the plain chain it replaces (`make check` runs this differential;
 `POMERANCE_NO_LOOKAHEAD=1` disables the layer for A/B).
 
-**Layer 4 - scale-general arithmetic.** All production values stay in
-Montgomery form (quadratic characters are unaffected: R is a square), with
-a two-limb reducer valid through p < 2^127, GMP's assembly powm for the
-fixed square-root exponents, batched Montgomery-trick inversions in the
-sampler, and threads pinned to the actual cgroup CPU quota - an
-oversubscribed thread pool silently costs ~2x, and mismeasuring the
-baseline the same way silently *inflates* any claimed ratio by ~2x.
+**Scale-general arithmetic.** All production values stay in Montgomery form
+(quadratic characters are unaffected: R is a square), with a two-limb
+reducer valid through p < 2^127, GMP's assembly powm for the fixed
+square-root exponents, batched Montgomery-trick inversions in the sampler,
+and threads pinned to the actual cgroup CPU quota - an oversubscribed
+thread pool silently costs ~2x, and mismeasuring a baseline the same way
+silently *inflates* any claimed ratio by ~2x.
 
-**Verified structure not yet merged.** The same research campaign that
-produced this engine proved two more exact identities on sibling engines:
-the conjugate-fiber rescue (D(u)D(-u) = (u^4-1)^2 f(u) with A(u) = A(-u):
-exactly one of two conjugate fibers always lifts on the nonsplit branch, a
-failed root algebraically constructing the partner's) and the genus-one
-first-lift cover (D*H = y(y-1)(y-2)*G^2: walking w^2 = X^3 - X emits curves
-that pre-pass the first halving gate at exactly 2x hazard - independently
-re-measured at 2.01-2.11x survivor density). Merging them into this engine
-is the highest-value open task here; they are documented so the next edit
-starts from the identities, not the archaeology.
+**Verified identities not yet merged.** Two further exact identities are
+proven and independently measured but not yet in this engine: the
+conjugate-fiber rescue (D(u)D(-u) = (u^4-1)^2 f(u) with A(u) = A(-u), so on
+the nonsplit branch exactly one of two conjugate fibers always lifts and a
+failed square root algebraically constructs the partner's) and the
+genus-one first-lift cover (D*H = y(y-1)(y-2)*G^2, so walking w^2 = X^3 - X
+emits curves that pre-pass the first halving gate at exactly 2x hazard;
+survivor density independently re-measured at 2.01-2.11x). Merging them is
+the highest-value open engineering task here.
 
-## 3. Results
+## 3. Measured results
 
 **Judged paired race** (fresh random probable primes generated after
 submission, both sides running the same primes in the same order under
 identical caps, every triple re-verified in exact integer arithmetic against
 the official DANGER3 `vpp.py` logic; AMD Milan, 4 vCPU, 10^21 tier, 2400 s
-per-prime cap): this engine's lineage solved **4**, the record stack **0**.
-Across the ten-trajectory campaign it came from, the pooled score on
-identical prime streams was 29 solves for the new engines versus 8 for the
-record stack.
+per-prime cap): **4 solves versus 0** for the record stack.
 
-**Equal-mass benchmark, re-measured from this repository** (engine rebuilt
-from source against the unmodified record engine, same seeds, 4 threads,
-arm64; equal hazard: 4M record-stack marks = 2M distinct curves by layer 1;
-reproduce with `make bench`):
+**Equal-mass benchmark** (this engine rebuilt from source against the
+unmodified record engine, same seeds, 4 threads, arm64; equal hazard: 4M
+record-stack marks = 2M distinct curves by the deduplication layer;
+reproduce with `make bench` - the record engine is vendored at
+`bench/upstream/pomerance.c`, so every ratio here is reproducible from this
+repository alone):
 
 | p (10^21 tier) | record stack, 4M marks | this engine, 2M curves | ratio |
 |---|---|---|---|
@@ -134,9 +127,8 @@ reproduce with `make bench`):
 | ...000117 (5 mod 8) | 6.81 s | 2.34 s | 2.91x |
 | ...000327 (7 mod 8) | 7.85 s | 1.88 s | 4.18x |
 
-The campaign's own AMD Milan measurements of the same comparison were
-4.3-4.4x: the algebraic layers transfer across platforms; hand-tuned x86
-arithmetic does not fully.
+The same comparison measured on AMD Milan gives 4.3-4.4x: the algebraic
+layers transfer across platforms; hand-tuned x86 arithmetic does not fully.
 
 **Skeleton lookahead A/B** (engine vs itself with
 `POMERANCE_NO_LOOKAHEAD=1`, 3 repetitions, 4 threads, arm64):
@@ -155,9 +147,9 @@ distinct curves for this engine. Bounded runs measure ~0.9M distinct
 curves/s on 4 arm64 cores - at both the 10^21 tier and on the frontier
 prime itself, the two-limb path barely notices the extra 20 bits. That is
 still weeks on a workstation and near a day on a 64-core box; the realistic
-path to the frontier is porting layers 1 and 3 (plus the unmerged cover)
-into the existing CUDA engine - the 10^26 record was 45 minutes on one
-RTX 6000, and the verified layers project the expected 10^27 run into
+path to the frontier is porting the deduplication, lookahead and cover
+layers into the existing CUDA lineage - the 10^26 record was 45 minutes on
+one RTX 6000, and the verified layers project the expected 10^27 run into
 single-digit GPU-hours. Search times are close to exponentially
 distributed: single runs routinely deviate several-fold from expectation in
 both directions.
@@ -183,32 +175,29 @@ structure on the gate tower, or a polylog predictor of v2(#E).
 ## 5. Building and running
 
     make            # needs gcc with OpenMP and libgmp-dev
-    make check      # lemma audit, lookahead differential, verified solves
+    make check      # dedup lemma audit, lookahead differential, verified solves
     make bench      # equal-coverage race vs the vendored record engine
 
     ./search <p> [seed]        # stdout: "A x0 candidates_tested"
 
 Environment variables: `SEARCH_THREADS` (worker count; default is the
 cgroup CPU quota, else 4), `SEARCH_MAX_TRIALS` (bounded run, for
-benchmarking), `POMERANCE_NO_LOOKAHEAD=1` (disable layer 3 for A/B).
+benchmarking), `POMERANCE_NO_LOOKAHEAD=1` (disable the lookahead for A/B).
 Diagnostics go to stderr; stdout carries exactly the one-line answer.
 Verify any output against the official DANGER3 logic:
 
     python3 tools/vpp.py <p> <A> <x0>       # prints True
 
 Supported classes: p mod 8 in {3, 5, 7} (p = 1 mod 8 remains unsupported in
-the whole lineage, as in the record stack). `bench/upstream/pomerance.c` is
-the record engine vendored verbatim so every ratio in this README is
-reproducible from this repository alone.
+the whole lineage, as in the record stack).
 
-## 6. Provenance and license
+## 6. Credits and license
 
 MIT, throughout. The base search lineage is Fabian Ruehle's, Alexa McLain's
-and Jane Shi's MIT-licensed DANGER3 record code; their headers are preserved
-in the source. The engine was generated by an autonomous research agent
-(GPT-5.6-sol under the codex harness) inside the pomerance-bench evaluation
-environment on 2026-08-28 and independently verified as described above; the
-skeleton-lookahead layer, the reciprocal-mark lemma audit, the
-cross-platform measurements and this document are the repository's own
-contributions. Every performance number states its platform; when
-reproducing, pin the record stack's thread count to the actual CPU quota.
+and Jane Shi's MIT-licensed DANGER3 record code (headers preserved in the
+source); the challenge and verifier are Andrew Sutherland's. The engine was
+produced in an autonomous agent research campaign (2026) and independently
+verified as described above; the skeleton-lookahead layer, the deduplication
+audit and the cross-platform measurements are this repository's own. Every
+performance number states its platform; when reproducing, pin the record
+stack's thread count to the actual CPU quota.

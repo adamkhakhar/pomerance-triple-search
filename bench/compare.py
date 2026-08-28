@@ -56,8 +56,8 @@ def main():
     ap.add_argument("--seed", default="9001")
     args = ap.parse_args()
 
-    ours = "/tmp/rmc_bench_ours"
-    theirs = "/tmp/rmc_bench_upstream"
+    ours = "/tmp/pts_bench_ours"
+    theirs = "/tmp/pts_bench_upstream"
     build(os.path.join(ROOT, "src", "search.c"), ours, ("-lgmp",))
     build(os.path.join(HERE, "upstream", "pomerance.c"), theirs)
 

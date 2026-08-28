@@ -7,7 +7,7 @@ search: src/search.c
 	$(CC) $(CFLAGS) -o $@ $< -lgmp -lm
 
 # Fast confidence check:
-#   1. the reciprocal-mark lemma audit (independent Python implementation);
+#   1. the marked-point deduplication lemma audit (independent implementation);
 #   2. the skeleton-lookahead differential: with a fixed seed and one thread,
 #      the lookahead chain must emit the exact same triple and candidate
 #      count as the plain chain it replaces;
@@ -15,7 +15,7 @@ search: src/search.c
 #      the official DANGER3 verifier logic.
 .PHONY: check
 check: search
-	python3 tools/audit_reciprocal.py --samples 200
+	python3 tools/audit_dedup.py --samples 200
 	@a=$$(SEARCH_THREADS=1 ./search 1000000000039 7); \
 	b=$$(SEARCH_THREADS=1 POMERANCE_NO_LOOKAHEAD=1 ./search 1000000000039 7); \
 	if [ "$$a" = "$$b" ]; then echo "lookahead differential: MATCH  [$$a]"; \

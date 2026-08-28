@@ -36,7 +36,7 @@ PRIMES = [
 
 
 def build(src, out, extra=()):
-    cmd = ["gcc", "-O3", "-fopenmp", *extra, "-o", out, src, "-lm"]
+    cmd = ["gcc", "-O3", "-fopenmp", "-DNDEBUG", "-o", out, src, "-lm", *extra]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit(f"build failed: {' '.join(cmd)}\n{r.stderr[-800:]}")
@@ -58,10 +58,12 @@ def main():
 
     ours = "/tmp/rmc_bench_ours"
     theirs = "/tmp/rmc_bench_upstream"
-    build(os.path.join(ROOT, "src", "pomerance_search.c"), ours)
-    build(os.path.join(HERE, "upstream", "pomerance.c"), theirs, ("-DNDEBUG",))
+    build(os.path.join(ROOT, "src", "search.c"), ours, ("-lgmp",))
+    build(os.path.join(HERE, "upstream", "pomerance.c"), theirs)
 
-    env = dict(os.environ, OMP_NUM_THREADS=str(args.threads))
+    env = dict(os.environ, OMP_NUM_THREADS=str(args.threads),
+               SEARCH_THREADS=str(args.threads),
+               SEARCH_MAX_TRIALS=str(args.curves))
     print(f"coverage per prime: {args.curves} curves "
           f"(= {2 * args.curves} upstream candidates), "
           f"threads: {args.threads}, seed: {args.seed}\n")
@@ -71,7 +73,7 @@ def main():
     for label, p in PRIMES:
         t_up = timed([theirs, p, args.seed, str(2 * args.curves),
                       "x16halvenonsplit"], env)
-        t_us = timed([ours, p, args.seed, str(args.curves)], env)
+        t_us = timed([ours, p, args.seed], env)
         tot_up += t_up
         tot_us += t_us
         print(f"{label:14s} {t_up:9.2f}s {t_us:9.2f}s {t_up / t_us:8.2f}x")
